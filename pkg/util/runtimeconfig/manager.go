@@ -21,6 +21,8 @@ import (
 	"github.com/cortexproject/cortex/pkg/util/services"
 )
 
+type BucketClientFactory func(ctx context.Context) (objstore.Bucket, error)
+
 // Loader loads the configuration from file.
 type Loader func(r io.Reader) (interface{}, error)
 
@@ -62,14 +64,11 @@ type Manager struct {
 	configHash        *prometheus.GaugeVec
 
 	bucketClient        objstore.Bucket
-	bucketClientFactory func(ctx context.Context) (objstore.Bucket, error)
+	bucketClientFactory BucketClientFactory
 }
 
 // New creates an instance of Manager and starts reload config loop based on config
-func New(cfg Config, registerer prometheus.Registerer, logger log.Logger) (*Manager, error) {
-	bucketClientFactory := func(ctx context.Context) (objstore.Bucket, error) {
-		return bucket.NewClient(ctx, cfg.StorageConfig, "runtime-config", logger, registerer)
-	}
+func New(cfg Config, registerer prometheus.Registerer, logger log.Logger, factory BucketClientFactory) (*Manager, error) {
 	if cfg.LoadPath == "" {
 		return nil, errors.New("LoadPath is empty")
 	}
@@ -89,7 +88,7 @@ func New(cfg Config, registerer prometheus.Registerer, logger log.Logger) (*Mana
 			Help: "Hash of the currently active runtime config file.",
 		}, []string{"sha256"}),
 		logger:              logger,
-		bucketClientFactory: bucketClientFactory,
+		bucketClientFactory: factory,
 	}
 
 	mgr.Service = services.NewBasicService(mgr.starting, mgr.loop, mgr.stopping)
@@ -198,10 +197,11 @@ func (om *Manager) loadConfigFromBucket(ctx context.Context) ([]byte, error) {
 	}
 
 	buf, err := io.ReadAll(readCloser)
-	err = readCloser.Close()
 	if err != nil {
-		return nil, errors.Wrap(err, "close file")
+		return nil, errors.Wrap(err, "read entire file")
 	}
+
+	err = readCloser.Close()
 	return buf, err
 }
 
