@@ -4,9 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/cortexproject/cortex/pkg/storage/bucket"
-	"github.com/thanos-io/objstore"
 	"net/http"
+
+	"github.com/thanos-io/objstore"
+
+	"github.com/cortexproject/cortex/pkg/storage/bucket"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"

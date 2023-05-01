@@ -5,15 +5,17 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
-	"github.com/cortexproject/cortex/pkg/storage/bucket"
-	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/stretchr/testify/mock"
-	"github.com/thanos-io/objstore"
 	"io"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/stretchr/testify/mock"
+	"github.com/thanos-io/objstore"
+
+	"github.com/cortexproject/cortex/pkg/storage/bucket"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
