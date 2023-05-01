@@ -90,4 +90,4 @@ ruler_storage:
     directory: /tmp/cortex/rules
 
 runtime_config:
-  file: docs/configuration/runtime-config.yaml
+  file: /tmp/cortex/config.yaml
