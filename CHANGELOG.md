@@ -13,7 +13,7 @@
 * [ENHANCEMENT] Compactor: Avoid double compaction by cleaning partition files in 2 cycles. #7129
 * [BUGFIX] Ring: Change DynamoDB KV to retry indefinitely for WatchKey. #7088
 * [BUGFIX] Ruler: Add XFunctions validation support. #7111
-* [BUGFIX] Distributor: Fix panic on health check failure when using stream push. #7116
+* [BUGFIX] Compactor: Avoid double compaction by cleaning partition files in 2 cycles. #7129
 
 ## 1.20.0 2025-11-10
 
