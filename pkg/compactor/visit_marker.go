@@ -18,8 +18,9 @@ import (
 )
 
 var (
-	errorVisitMarkerNotFound  = errors.New("visit marker not found")
-	errorUnmarshalVisitMarker = errors.New("unmarshal visit marker JSON")
+	errorVisitMarkerNotFound     = errors.New("visit marker not found")
+	errorUnmarshalVisitMarker    = errors.New("unmarshal visit marker JSON")
+	errorInconsistentVisitMarker = errors.New("current and existing visit markers are inconsistent")
 )
 
 type VisitStatus string
@@ -36,6 +37,7 @@ type VisitMarker interface {
 	UpdateStatus(ownerIdentifier string, status VisitStatus)
 	GetStatus() VisitStatus
 	IsExpired(visitMarkerTimeout time.Duration) bool
+	IsConsistentWithExistingMarker(v VisitMarker) bool
 	String() string
 }
 
@@ -60,7 +62,7 @@ func NewVisitMarkerManager(
 	}
 }
 
-func (v *VisitMarkerManager) HeartBeat(ctx context.Context, errChan <-chan error, visitMarkerFileUpdateInterval time.Duration, deleteOnExit bool) {
+func (v *VisitMarkerManager) HeartBeat(ctx context.Context, cancel context.CancelFunc, errChan <-chan error, visitMarkerFileUpdateInterval time.Duration, deleteOnExit bool) {
 	level.Info(v.getLogger()).Log("msg", "start visit marker heart beat")
 	ticker := time.NewTicker(visitMarkerFileUpdateInterval)
 	defer ticker.Stop()
@@ -99,7 +101,8 @@ heartBeat:
 	}
 }
 
-func (v *VisitMarkerManager) MarkWithStatus(ctx context.Context, status VisitStatus) {
+func (v *VisitMarkerManager) MarkWithStatus(ctx context.Context, cancel context.CancelFunc, status VisitStatus) {
+	v.cancelContextIfMarkerInconsistent(ctx, cancel)
 	v.visitMarker.UpdateStatus(v.ownerIdentifier, status)
 	if err := v.updateVisitMarker(ctx); err != nil {
 		level.Error(v.getLogger()).Log("msg", "unable to upsert visit marker file content", "new_status", status, "err", err)
@@ -108,7 +111,8 @@ func (v *VisitMarkerManager) MarkWithStatus(ctx context.Context, status VisitSta
 	level.Debug(v.getLogger()).Log("msg", "marked with new status", "new_status", status)
 }
 
-func (v *VisitMarkerManager) DeleteVisitMarker(ctx context.Context) {
+func (v *VisitMarkerManager) DeleteVisitMarker(ctx context.Context, cancel context.CancelFunc) {
+	v.cancelContextIfMarkerInconsistent(ctx, cancel)
 	if err := v.bkt.Delete(ctx, v.visitMarker.GetVisitMarkerFilePath()); err != nil {
 		level.Error(v.getLogger()).Log("msg", "failed to delete visit marker", "err", err)
 		return
@@ -152,4 +156,13 @@ func (v *VisitMarkerManager) updateVisitMarker(ctx context.Context) error {
 
 func (v *VisitMarkerManager) getLogger() log.Logger {
 	return log.With(v.logger, "visit_marker", v.visitMarker.String())
+}
+
+func (v *VisitMarkerManager) cancelContextIfMarkerInconsistent(ctx context.Context, cancel context.CancelFunc) {
+	var existingVisitMarker VisitMarker
+	err := v.ReadVisitMarker(ctx, existingVisitMarker)
+	if err == nil && !v.visitMarker.IsConsistentWithExistingMarker(existingVisitMarker) {
+		level.Error(v.getLogger()).Log("msg", "existing and current visit markers are inconsistent, cancelling the compaction", "existing", existingVisitMarker.String(), "current", v.visitMarker.String())
+		cancel()
+	}
 }

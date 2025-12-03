@@ -204,6 +204,10 @@ func (t *TestVisitMarker) IsExpired(visitMarkerTimeout time.Duration) bool {
 	return true
 }
 
+func (t *TestVisitMarker) IsConsistentWithExistingMarker(_ VisitMarker) bool {
+	return true
+}
+
 func (t *TestVisitMarker) GetStatus() VisitStatus {
 	return t.Status
 }

@@ -25,21 +25,23 @@ var (
 )
 
 type partitionVisitMarker struct {
-	CompactorID        string      `json:"compactorID"`
-	Status             VisitStatus `json:"status"`
-	PartitionedGroupID uint32      `json:"partitionedGroupID"`
-	PartitionID        int         `json:"partitionID"`
+	CompactorID                  string      `json:"compactorID"`
+	Status                       VisitStatus `json:"status"`
+	PartitionedGroupID           uint32      `json:"partitionedGroupID"`
+	PartitionedGroupCreationTime int64       `json:"partitionedGroupCreationTime"`
+	PartitionID                  int         `json:"partitionID"`
 	// VisitTime is a unix timestamp of when the partition was visited (mark updated).
 	VisitTime int64 `json:"visitTime"`
 	// Version of the file.
 	Version int `json:"version"`
 }
 
-func newPartitionVisitMarker(compactorID string, partitionedGroupID uint32, partitionID int) *partitionVisitMarker {
+func newPartitionVisitMarker(compactorID string, partitionedGroupID uint32, partitionedGroupCreationTime int64, partitionID int) *partitionVisitMarker {
 	return &partitionVisitMarker{
-		CompactorID:        compactorID,
-		PartitionedGroupID: partitionedGroupID,
-		PartitionID:        partitionID,
+		CompactorID:                  compactorID,
+		PartitionedGroupID:           partitionedGroupID,
+		PartitionedGroupCreationTime: partitionedGroupCreationTime,
+		PartitionID:                  partitionID,
 	}
 }
 
@@ -53,6 +55,11 @@ func (b *partitionVisitMarker) IsVisited(partitionVisitMarkerTimeout time.Durati
 
 func (b *partitionVisitMarker) IsPendingByCompactor(partitionVisitMarkerTimeout time.Duration, partitionID int, compactorID string) bool {
 	return b.CompactorID == compactorID && partitionID == b.PartitionID && b.GetStatus() == Pending && !b.IsExpired(partitionVisitMarkerTimeout)
+}
+
+func (b *partitionVisitMarker) IsConsistentWithExistingMarker(v VisitMarker) bool {
+	existingVisitMarker, ok := v.(*partitionVisitMarker)
+	return ok && (existingVisitMarker.PartitionedGroupCreationTime == 0 || existingVisitMarker.PartitionedGroupCreationTime == b.PartitionedGroupCreationTime)
 }
 
 func (b *partitionVisitMarker) GetStatus() VisitStatus {
